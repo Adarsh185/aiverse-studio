@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Sparkles, MessageSquare, Image, Video, Code } from "lucide-react";
+import { Sparkles, MessageSquare, Image, Video, Code, Users } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -26,6 +26,11 @@ const Index = () => {
       icon: Image,
       title: "Image Generation",
       description: "Create stunning visuals",
+    },
+    {
+      icon: Users,
+      title: "Collaboration",
+      description: "Real-time teamwork",
     },
     {
       icon: Video,

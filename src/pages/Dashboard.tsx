@@ -9,7 +9,8 @@ import {
   Video, 
   Code, 
   LogOut,
-  Sparkles
+  Sparkles,
+  Users
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,7 +73,14 @@ const Dashboard = () => {
       description: "Create stunning images from text descriptions",
       icon: ImageIcon,
       href: "/image",
-      available: false,
+      available: true,
+    },
+    {
+      title: "Collaboration",
+      description: "Real-time presence and team collaboration",
+      icon: Users,
+      href: "/collaborate",
+      available: true,
     },
     {
       title: "Video Generation",
@@ -115,7 +123,7 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
+        <div className="grid md:grid-cols-2 gap-6 max-w-5xl">
           {features.map((feature) => {
             const Icon = feature.icon;
             return (
