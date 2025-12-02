@@ -10,7 +10,8 @@ import {
   Code, 
   LogOut,
   Sparkles,
-  Users
+  Users,
+  Settings as SettingsIcon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,10 +107,16 @@ const Dashboard = () => {
             <Sparkles className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight">AIverse</h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/settings")}>
+              <SettingsIcon className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
