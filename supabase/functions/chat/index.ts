@@ -7,7 +7,7 @@ const corsHeaders = {
 
 interface Message {
   role: "user" | "assistant" | "system";
-  content: string;
+  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
 }
 
 serve(async (req) => {
@@ -16,7 +16,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json() as { messages: Message[] };
+    const { messages, stream = true } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       throw new Error("Messages array is required");
@@ -27,7 +27,14 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Sending request to Lovable AI with", messages.length, "messages");
+    console.log("Sending request to Lovable AI with", messages.length, "messages, stream:", stream);
+
+    const systemMessage: Message = {
+      role: "system",
+      content: `You are a helpful AI assistant in AIverse. You can help with coding, writing, analysis, and general questions.
+When providing code, always use proper markdown code blocks with language specification like \`\`\`javascript or \`\`\`python.
+Be concise but thorough. Use markdown formatting for better readability.`,
+    };
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -37,13 +44,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful AI assistant in AIverse. Be concise, friendly, and informative. Help users with their questions and tasks.",
-          },
-          ...messages,
-        ],
+        messages: [systemMessage, ...messages],
+        stream: stream,
       }),
     });
 
@@ -52,18 +54,28 @@ serve(async (req) => {
       console.error("Lovable AI error:", response.status, errorText);
       
       if (response.status === 429) {
-        throw new Error("Rate limit exceeded. Please try again later.");
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       if (response.status === 402) {
-        throw new Error("AI credits exhausted. Please add credits to continue.");
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       
       throw new Error(`AI API error: ${response.status}`);
     }
 
-    const data = await response.json();
-    console.log("Received response from Lovable AI");
+    if (stream) {
+      return new Response(response.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
 
+    const data = await response.json();
     const aiResponse = data.choices?.[0]?.message?.content;
 
     if (!aiResponse) {
