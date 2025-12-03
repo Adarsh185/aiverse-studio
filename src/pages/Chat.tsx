@@ -22,6 +22,7 @@ const Chat = () => {
     selectConversation,
     createNewChat,
     deleteConversation,
+    renameConversation,
     sendMessage,
   } = useChat();
 
@@ -47,6 +48,7 @@ const Chat = () => {
         onSelectConversation={selectConversation}
         onNewChat={createNewChat}
         onDeleteConversation={deleteConversation}
+        onRenameConversation={renameConversation}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
