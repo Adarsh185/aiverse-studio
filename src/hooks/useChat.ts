@@ -122,7 +122,7 @@ export const useChat = () => {
     }
   }, [currentConversationId]);
 
-  // Update conversation title
+  // Update conversation title (for auto-title on first message)
   const updateTitle = useCallback(async (conversationId: string, firstMessage: string) => {
     const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : "");
     
@@ -135,6 +135,28 @@ export const useChat = () => {
       prev.map(c => c.id === conversationId ? { ...c, title } : c)
     );
   }, []);
+
+  // Rename conversation (manual rename)
+  const renameConversation = useCallback(async (id: string, newTitle: string) => {
+    const { error } = await supabase
+      .from("conversations")
+      .update({ title: newTitle })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error renaming conversation:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to rename conversation",
+      });
+      return;
+    }
+
+    setConversations(prev =>
+      prev.map(c => c.id === id ? { ...c, title: newTitle } : c)
+    );
+  }, [toast]);
 
   // Send message with streaming
   const sendMessage = useCallback(async (content: string, imageUrl?: string) => {
@@ -283,6 +305,7 @@ export const useChat = () => {
     selectConversation,
     createNewChat,
     deleteConversation,
+    renameConversation,
     sendMessage,
   };
 };
