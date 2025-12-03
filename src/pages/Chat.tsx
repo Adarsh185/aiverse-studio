@@ -2,27 +2,30 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { ArrowLeft, Send, Sparkles, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { ChatSidebar } from "@/components/chat/ChatSidebar";
+import { ChatMessage } from "@/components/chat/ChatMessage";
+import { ChatInput } from "@/components/chat/ChatInput";
+import { useChat } from "@/hooks/useChat";
 
 const Chat = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const {
+    conversations,
+    currentConversationId,
+    messages,
+    loading,
+    selectConversation,
+    createNewChat,
+    deleteConversation,
+    sendMessage,
+  } = useChat();
 
   useEffect(() => {
-    // Check authentication
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         navigate("/auth");
@@ -31,135 +34,81 @@ const Chat = () => {
   }, [navigate]);
 
   useEffect(() => {
-    // Auto-scroll to bottom
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
-
-    const userMessage: Message = {
-      role: "user",
-      content: input,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("chat", {
-        body: { messages: [...messages, userMessage] },
-      });
-
-      if (error) throw error;
-
-      if (data?.response) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: data.response,
-          },
-        ]);
-      }
-    } catch (error: any) {
-      console.error("Chat error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to get response from AI",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-semibold">AI Chat</h1>
-          </div>
-        </div>
-      </header>
+    <div className="h-screen flex bg-background">
+      <ChatSidebar
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        onSelectConversation={selectConversation}
+        onNewChat={createNewChat}
+        onDeleteConversation={deleteConversation}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
 
-      <main className="flex-1 container mx-auto px-4 py-6 flex flex-col max-w-4xl">
-        <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="border-b border-border px-4 py-3 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/dashboard")}
+            className="hidden md:flex"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Dashboard
+          </Button>
+          <div className="flex items-center gap-2 ml-10 md:ml-0">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h1 className="text-lg font-semibold">AI Chat</h1>
+          </div>
+        </header>
+
+        {/* Messages */}
+        <ScrollArea className="flex-1" ref={scrollRef}>
           {messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-center">
-              <div className="space-y-4 animate-fade-in">
+            <div className="h-full flex items-center justify-center p-8">
+              <div className="text-center space-y-4 animate-fade-in max-w-md">
                 <div className="p-4 rounded-full bg-primary/10 w-fit mx-auto">
-                  <Sparkles className="h-8 w-8 text-primary" />
+                  <Sparkles className="h-10 w-10 text-primary" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-semibold mb-2">Start a conversation</h2>
-                  <p className="text-muted-foreground">
-                    Ask me anything and I'll help you out
-                  </p>
-                </div>
+                <h2 className="text-2xl font-semibold">How can I help you today?</h2>
+                <p className="text-muted-foreground">
+                  Ask me anything - coding help, writing, analysis, or general questions.
+                  You can also upload images for visual context.
+                </p>
               </div>
             </div>
           ) : (
-            <div className="space-y-6 pb-4">
+            <div className="max-w-4xl mx-auto">
               {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  } animate-fade-in`}
-                >
-                  <Card
-                    className={`max-w-[80%] p-4 ${
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-card"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  </Card>
-                </div>
+                <ChatMessage key={index} message={message} />
               ))}
               {loading && (
-                <div className="flex justify-start animate-fade-in">
-                  <Card className="max-w-[80%] p-4 bg-card">
+                <div className="flex gap-4 px-4 py-6 bg-muted/30">
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  </Card>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm mb-1">AIverse</p>
+                    <p className="text-muted-foreground">Thinking...</p>
+                  </div>
                 </div>
               )}
             </div>
           )}
         </ScrollArea>
 
-        <div className="mt-6 flex gap-2">
-          <Input
-            placeholder="Type your message..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={loading}
-            className="flex-1"
-          />
-          <Button onClick={sendMessage} disabled={loading || !input.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
+        {/* Input */}
+        <div className="max-w-4xl mx-auto w-full">
+          <ChatInput onSend={sendMessage} disabled={loading} />
         </div>
-      </main>
+      </div>
     </div>
   );
 };
