@@ -38,6 +38,53 @@ export type Database = {
         }
         Relationships: []
       }
+      files: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          language: string | null
+          name: string
+          parent_id: string | null
+          path: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          name: string
+          parent_id?: string | null
+          path: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          name?: string
+          parent_id?: string | null
+          path?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string

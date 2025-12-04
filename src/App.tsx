@@ -11,6 +11,7 @@ import Chat from "./pages/Chat";
 import ImageGen from "./pages/ImageGen";
 import Collaborate from "./pages/Collaborate";
 import Settings from "./pages/Settings";
+import CodeEditor from "./pages/CodeEditor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/image" element={<ImageGen />} />
             <Route path="/collaborate" element={<Collaborate />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/editor" element={<CodeEditor />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
