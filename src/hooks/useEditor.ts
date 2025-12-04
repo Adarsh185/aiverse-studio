@@ -31,6 +31,18 @@ export const useEditor = (userId: string | undefined) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Find file by ID recursively
+  const findFileById = (nodes: FileNode[], id: string): FileNode | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children) {
+        const found = findFileById(node.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
   // Build file tree from flat list
   const buildFileTree = (flatFiles: FileNode[]): FileNode[] => {
     const map = new Map<string, FileNode>();
@@ -97,9 +109,12 @@ export const useEditor = (userId: string | undefined) => {
   const createFile = async (parentId: string | null, name: string, type: 'file' | 'folder') => {
     if (!userId) return;
 
-    const parentPath = parentId 
-      ? files.find(f => f.id === parentId)?.path || ''
-      : '';
+    // Find parent path by recursively searching the file tree
+    let parentPath = '';
+    if (parentId) {
+      const parent = findFileById(files, parentId);
+      parentPath = parent?.path || '';
+    }
     const path = parentPath ? `${parentPath}/${name}` : `/${name}`;
 
     try {

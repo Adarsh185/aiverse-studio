@@ -8,6 +8,7 @@ import { MonacoEditor } from "@/components/editor/MonacoEditor";
 import { StatusBar } from "@/components/editor/StatusBar";
 import { Terminal } from "@/components/editor/Terminal";
 import { CommandPalette } from "@/components/editor/CommandPalette";
+import { ExtensionsPanel } from "@/components/editor/ExtensionsPanel";
 import { useEditor } from "@/hooks/useEditor";
 import { Button } from "@/components/ui/button";
 import { 
@@ -18,20 +19,21 @@ import {
 import { 
   Command, 
   Terminal as TerminalIcon, 
-  Play, 
   ArrowLeft,
   Settings,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  Blocks,
+  FolderTree
 } from "lucide-react";
-import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const CodeEditor = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarView, setSidebarView] = useState<'files' | 'extensions' | null>('files');
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
   const {
@@ -89,10 +91,10 @@ const CodeEditor = () => {
         e.preventDefault();
         setIsTerminalOpen(prev => !prev);
       }
-      // F5 - Run file
-      if (e.key === 'F5') {
+      // Cmd/Ctrl + Shift + X - Extensions
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'x') {
         e.preventDefault();
-        // Run file will be handled by terminal
+        setSidebarView(prev => prev === 'extensions' ? 'files' : 'extensions');
       }
     };
 
@@ -122,14 +124,6 @@ const CodeEditor = () => {
             onClick={() => navigate('/dashboard')}
           >
             <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          >
-            {isSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
           </Button>
           <span className="text-sm font-medium">AIverse Code Editor</span>
         </div>
@@ -164,63 +158,101 @@ const CodeEditor = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal">
-          {isSidebarOpen && (
-            <>
-              <ResizablePanel defaultSize={20} minSize={15} maxSize={40}>
-                <FileExplorer
-                  files={files}
-                  onFileSelect={openFile}
-                  onCreateFile={createFile}
-                  onDeleteFile={deleteFile}
-                  onRenameFile={renameFile}
-                  selectedFileId={activeTab?.fileId || null}
+      <div className="flex-1 overflow-hidden flex">
+        {/* Activity Bar */}
+        <div className="w-12 bg-muted/30 border-r border-border flex flex-col items-center py-2 gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10",
+              sidebarView === 'files' && "bg-accent text-accent-foreground"
+            )}
+            onClick={() => setSidebarView(sidebarView === 'files' ? null : 'files')}
+            title="Explorer (⌘E)"
+          >
+            <FolderTree className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10",
+              sidebarView === 'extensions' && "bg-accent text-accent-foreground"
+            )}
+            onClick={() => setSidebarView(sidebarView === 'extensions' ? null : 'extensions')}
+            title="Extensions (⌘⇧X)"
+          >
+            <Blocks className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Sidebar + Editor */}
+        <div className="flex-1 overflow-hidden">
+          <ResizablePanelGroup direction="horizontal">
+            {sidebarView && (
+              <>
+                <ResizablePanel defaultSize={20} minSize={15} maxSize={40}>
+                  {sidebarView === 'files' ? (
+                    <FileExplorer
+                      files={files}
+                      onFileSelect={openFile}
+                      onCreateFile={createFile}
+                      onDeleteFile={deleteFile}
+                      onRenameFile={renameFile}
+                      selectedFileId={activeTab?.fileId || null}
+                    />
+                  ) : (
+                    <ExtensionsPanel
+                      isOpen={true}
+                      onClose={() => setSidebarView('files')}
+                    />
+                  )}
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+              </>
+            )}
+            <ResizablePanel defaultSize={80}>
+              <div className="h-full flex flex-col">
+                <EditorTabs
+                  tabs={tabs}
+                  activeTabId={activeTabId}
+                  onTabSelect={setActiveTabId}
+                  onTabClose={closeTab}
                 />
-              </ResizablePanel>
-              <ResizableHandle withHandle />
-            </>
-          )}
-          <ResizablePanel defaultSize={80}>
-            <div className="h-full flex flex-col">
-              <EditorTabs
-                tabs={tabs}
-                activeTabId={activeTabId}
-                onTabSelect={setActiveTabId}
-                onTabClose={closeTab}
-              />
-              <div className="flex-1 overflow-hidden">
-                {activeTab ? (
-                  <MonacoEditor
-                    value={activeTab.content}
-                    language={activeTab.language}
-                    onChange={(value) => updateTabContent(activeTab.id, value)}
-                    onSave={() => saveFile()}
-                  />
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-                    <Command className="h-16 w-16 mb-4 opacity-20" />
-                    <p className="text-lg">No file open</p>
-                    <p className="text-sm mt-2">
-                      Open a file from the explorer or press{" "}
-                      <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">⌘P</kbd>{" "}
-                      to search
-                    </p>
-                  </div>
-                )}
+                <div className="flex-1 overflow-hidden">
+                  {activeTab ? (
+                    <MonacoEditor
+                      value={activeTab.content}
+                      language={activeTab.language}
+                      onChange={(value) => updateTabContent(activeTab.id, value)}
+                      onSave={() => saveFile()}
+                    />
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                      <Command className="h-16 w-16 mb-4 opacity-20" />
+                      <p className="text-lg">No file open</p>
+                      <p className="text-sm mt-2">
+                        Open a file from the explorer or press{" "}
+                        <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">⌘P</kbd>{" "}
+                        to search
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <Terminal
+                  isOpen={isTerminalOpen}
+                  onClose={() => setIsTerminalOpen(false)}
+                  currentFile={activeTab ? {
+                    name: activeTab.name,
+                    content: activeTab.content,
+                    path: activeTab.path
+                  } : null}
+                />
               </div>
-              <Terminal
-                isOpen={isTerminalOpen}
-                onClose={() => setIsTerminalOpen(false)}
-                currentFile={activeTab ? {
-                  name: activeTab.name,
-                  content: activeTab.content,
-                  path: activeTab.path
-                } : null}
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
       </div>
 
       {/* Status Bar */}
