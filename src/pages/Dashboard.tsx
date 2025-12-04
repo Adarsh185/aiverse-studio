@@ -92,10 +92,10 @@ const Dashboard = () => {
     },
     {
       title: "Code Editor",
-      description: "Collaborative code editing with AI assistance",
+      description: "VS Code-like editor with terminal and AI assistance",
       icon: Code,
-      href: "/code",
-      available: false,
+      href: "/editor",
+      available: true,
     },
   ];
 
