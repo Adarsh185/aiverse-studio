@@ -17,57 +17,61 @@ serve(async (req) => {
       throw new Error("Prompt is required and must be a string");
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    console.log("Generating image with prompt:", prompt);
+    console.log("Generating image with Gemini, prompt:", prompt);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
+    // Use Gemini's Imagen 3 model for image generation
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          instances: [{ prompt }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: "1:1",
           },
-        ],
-        modalities: ["image", "text"],
-      }),
-    });
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Lovable AI error:", response.status, errorText);
+      console.error("Gemini API error:", response.status, errorText);
 
       if (response.status === 429) {
         throw new Error("Rate limit exceeded. Please try again later.");
       }
-      if (response.status === 402) {
-        throw new Error("AI credits exhausted. Please add credits to continue.");
+      if (response.status === 403) {
+        throw new Error("API key invalid or Imagen API not enabled. Please check your Gemini API key and enable Imagen API.");
       }
 
-      throw new Error(`AI API error: ${response.status}`);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("Received response from Lovable AI");
+    console.log("Received response from Gemini");
 
     // Extract the base64 image from the response
-    const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const imageData = data.predictions?.[0]?.bytesBase64Encoded;
 
     if (!imageData) {
+      console.error("Unexpected response structure:", JSON.stringify(data));
       throw new Error("No image generated");
     }
 
+    // Return as data URL
+    const dataUrl = `data:image/png;base64,${imageData}`;
+
     return new Response(
-      JSON.stringify({ image: imageData }),
+      JSON.stringify({ image: dataUrl }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
