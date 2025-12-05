@@ -2,27 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { FileNode, EditorTab } from "@/types/editor";
 import { toast } from "sonner";
-
-const getLanguageFromFilename = (filename: string): string => {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  const languageMap: Record<string, string> = {
-    js: 'javascript',
-    jsx: 'javascript',
-    ts: 'typescript',
-    tsx: 'typescript',
-    py: 'python',
-    html: 'html',
-    css: 'css',
-    json: 'json',
-    md: 'markdown',
-    sql: 'sql',
-    yaml: 'yaml',
-    yml: 'yaml',
-    xml: 'xml',
-    txt: 'plaintext',
-  };
-  return languageMap[ext || ''] || 'plaintext';
-};
+import { getLanguageFromFilename } from "@/components/editor/FileIcons";
 
 export const useEditor = (userId: string | undefined) => {
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -141,6 +121,48 @@ export const useEditor = (userId: string | undefined) => {
       }
 
       toast.success(`${type === 'folder' ? 'Folder' : 'File'} created`);
+    } catch (error: any) {
+      console.error('Error creating file:', error);
+      toast.error(error.message?.includes('duplicate') ? 'File already exists' : 'Failed to create file');
+    }
+  };
+
+  // Create file with content (for templates)
+  const createFileWithContent = async (parentId: string | null, name: string, content: string) => {
+    if (!userId) return;
+
+    // Find parent path by recursively searching the file tree
+    let parentPath = '';
+    if (parentId) {
+      const parent = findFileById(files, parentId);
+      parentPath = parent?.path || '';
+    }
+    const path = parentPath ? `${parentPath}/${name}` : `/${name}`;
+
+    try {
+      const { data, error } = await supabase
+        .from('files')
+        .insert({
+          user_id: userId,
+          name,
+          path,
+          type: 'file',
+          parent_id: parentId,
+          language: getLanguageFromFilename(name),
+          content,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await loadFiles();
+      
+      if (data) {
+        openFile(data as FileNode);
+      }
+
+      toast.success('File created with template');
     } catch (error: any) {
       console.error('Error creating file:', error);
       toast.error(error.message?.includes('duplicate') ? 'File already exists' : 'Failed to create file');
@@ -281,6 +303,7 @@ export const useEditor = (userId: string | undefined) => {
     isLoading,
     setActiveTabId,
     createFile,
+    createFileWithContent,
     deleteFile,
     renameFile,
     openFile,

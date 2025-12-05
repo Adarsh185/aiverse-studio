@@ -9,6 +9,7 @@ import { StatusBar } from "@/components/editor/StatusBar";
 import { Terminal } from "@/components/editor/Terminal";
 import { CommandPalette } from "@/components/editor/CommandPalette";
 import { ExtensionsPanel } from "@/components/editor/ExtensionsPanel";
+import { GitPanel } from "@/components/editor/GitPanel";
 import { useEditor } from "@/hooks/useEditor";
 import { Button } from "@/components/ui/button";
 import { 
@@ -24,7 +25,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Blocks,
-  FolderTree
+  FolderTree,
+  GitBranch
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +35,7 @@ const CodeEditor = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const [sidebarView, setSidebarView] = useState<'files' | 'extensions' | null>('files');
+  const [sidebarView, setSidebarView] = useState<'files' | 'extensions' | 'git' | null>('files');
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
   const {
@@ -45,6 +47,7 @@ const CodeEditor = () => {
     isLoading,
     setActiveTabId,
     createFile,
+    createFileWithContent,
     deleteFile,
     renameFile,
     openFile,
@@ -95,6 +98,11 @@ const CodeEditor = () => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'x') {
         e.preventDefault();
         setSidebarView(prev => prev === 'extensions' ? 'files' : 'extensions');
+      }
+      // Cmd/Ctrl + Shift + G - Git
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'g') {
+        e.preventDefault();
+        setSidebarView(prev => prev === 'git' ? 'files' : 'git');
       }
     };
 
@@ -178,6 +186,18 @@ const CodeEditor = () => {
             size="icon"
             className={cn(
               "h-10 w-10",
+              sidebarView === 'git' && "bg-accent text-accent-foreground"
+            )}
+            onClick={() => setSidebarView(sidebarView === 'git' ? null : 'git')}
+            title="Source Control (⌘⇧G)"
+          >
+            <GitBranch className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10",
               sidebarView === 'extensions' && "bg-accent text-accent-foreground"
             )}
             onClick={() => setSidebarView(sidebarView === 'extensions' ? null : 'extensions')}
@@ -198,9 +218,15 @@ const CodeEditor = () => {
                       files={files}
                       onFileSelect={openFile}
                       onCreateFile={createFile}
+                      onCreateFileWithContent={createFileWithContent}
                       onDeleteFile={deleteFile}
                       onRenameFile={renameFile}
                       selectedFileId={activeTab?.fileId || null}
+                    />
+                  ) : sidebarView === 'git' ? (
+                    <GitPanel
+                      isOpen={true}
+                      onClose={() => setSidebarView('files')}
                     />
                   ) : (
                     <ExtensionsPanel
@@ -227,6 +253,7 @@ const CodeEditor = () => {
                       language={activeTab.language}
                       onChange={(value) => updateTabContent(activeTab.id, value)}
                       onSave={() => saveFile()}
+                      onCursorChange={(line, column) => setCursorPosition({ line, column })}
                     />
                   ) : (
                     <div className="h-full flex flex-col items-center justify-center text-muted-foreground">

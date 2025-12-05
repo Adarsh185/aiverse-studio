@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { EditorTab } from "@/types/editor";
 import { cn } from "@/lib/utils";
+import { FileIcon } from "./FileIcons";
 
 interface EditorTabsProps {
   tabs: EditorTab[];
@@ -8,16 +9,6 @@ interface EditorTabsProps {
   onTabSelect: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
 }
-
-const getFileIcon = (name: string) => {
-  const ext = name.split('.').pop()?.toLowerCase();
-  const iconMap: Record<string, string> = {
-    js: '📜', jsx: '⚛️', ts: '💎', tsx: '⚛️',
-    py: '🐍', html: '🌐', css: '🎨', json: '📋',
-    md: '📝', txt: '📄', sql: '🗃️', yaml: '⚙️', yml: '⚙️'
-  };
-  return iconMap[ext || ''] || '📄';
-};
 
 export const EditorTabs = ({
   tabs,
@@ -40,7 +31,7 @@ export const EditorTabs = ({
           )}
           onClick={() => onTabSelect(tab.id)}
         >
-          <span className="text-xs shrink-0">{getFileIcon(tab.name)}</span>
+          <FileIcon filename={tab.name} />
           <span className="text-sm truncate">{tab.name}</span>
           {tab.isDirty && (
             <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
