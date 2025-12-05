@@ -5,6 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const IMAGE_API_URL = "https://yctowimorwmazlcnpxue.supabase.co/functions/v1/generate-image";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,75 +19,37 @@ serve(async (req) => {
       throw new Error("Prompt is required and must be a string");
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
-    }
+    console.log("Generating image with external API, prompt:", prompt);
 
-    console.log("Generating image with Gemini, prompt:", prompt);
-
-    // Use Gemini 2.5 Flash Image model
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ["image", "text"],
-          },
-        }),
-      }
-    );
+    const response = await fetch(IMAGE_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
+      console.error("Image API error:", response.status, errorText);
 
       if (response.status === 429) {
         throw new Error("Rate limit exceeded. Please try again later.");
       }
-      if (response.status === 403) {
-        throw new Error("API key invalid or access denied. Please check your Gemini API key.");
-      }
 
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+      throw new Error(`Image API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("Received response from Gemini");
+    console.log("Received response from Image API");
 
-    // Extract the base64 image from the response
-    const parts = data.candidates?.[0]?.content?.parts;
-    let imageData = null;
-
-    if (parts) {
-      for (const part of parts) {
-        if (part.inlineData) {
-          imageData = part.inlineData.data;
-          break;
-        }
-      }
-    }
-
-    if (!imageData) {
+    if (!data.image) {
       console.error("Unexpected response structure:", JSON.stringify(data));
-      throw new Error("No image generated. The model may have returned text only.");
+      throw new Error("No image generated");
     }
-
-    // Return as data URL
-    const mimeType = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.mimeType || "image/png";
-    const dataUrl = `data:${mimeType};base64,${imageData}`;
 
     return new Response(
-      JSON.stringify({ image: dataUrl }),
+      JSON.stringify({ image: data.image }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
