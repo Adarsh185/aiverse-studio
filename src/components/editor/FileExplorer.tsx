@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, Trash2, Edit2 } from "lucide-react";
+import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, Trash2, Edit2, FilePlus } from "lucide-react";
 import { FileNode } from "@/types/editor";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -8,33 +8,28 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { FileIcon } from "./FileIcons";
+import { NewFileDialog } from "./NewFileDialog";
 
 interface FileExplorerProps {
   files: FileNode[];
   onFileSelect: (file: FileNode) => void;
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
+  onCreateFileWithContent?: (parentId: string | null, name: string, content: string) => void;
   onDeleteFile: (file: FileNode) => void;
   onRenameFile: (file: FileNode, newName: string) => void;
   selectedFileId: string | null;
 }
-
-const getFileIcon = (name: string) => {
-  const ext = name.split('.').pop()?.toLowerCase();
-  const iconMap: Record<string, string> = {
-    js: '📜', jsx: '⚛️', ts: '💎', tsx: '⚛️',
-    py: '🐍', html: '🌐', css: '🎨', json: '📋',
-    md: '📝', txt: '📄', sql: '🗃️', yaml: '⚙️', yml: '⚙️'
-  };
-  return iconMap[ext || ''] || '📄';
-};
 
 interface FileTreeItemProps {
   node: FileNode;
   depth: number;
   onFileSelect: (file: FileNode) => void;
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
+  onCreateFileWithContent?: (parentId: string | null, name: string, content: string) => void;
   onDeleteFile: (file: FileNode) => void;
   onRenameFile: (file: FileNode, newName: string) => void;
   selectedFileId: string | null;
@@ -44,7 +39,8 @@ const FileTreeItem = ({
   node, 
   depth, 
   onFileSelect, 
-  onCreateFile, 
+  onCreateFile,
+  onCreateFileWithContent,
   onDeleteFile, 
   onRenameFile,
   selectedFileId 
@@ -54,6 +50,7 @@ const FileTreeItem = ({
   const [renameValue, setRenameValue] = useState(node.name);
   const [isCreating, setIsCreating] = useState<'file' | 'folder' | null>(null);
   const [newItemName, setNewItemName] = useState('');
+  const [showNewFileDialog, setShowNewFileDialog] = useState(false);
 
   const handleRename = () => {
     if (renameValue.trim() && renameValue !== node.name) {
@@ -107,7 +104,7 @@ const FileTreeItem = ({
             ) : (
               <>
                 <span className="w-4" />
-                <span className="text-xs">{getFileIcon(node.name)}</span>
+                <FileIcon filename={node.name} />
               </>
             )}
             {isRenaming ? (
@@ -131,12 +128,16 @@ const FileTreeItem = ({
         <ContextMenuContent>
           {isFolder && (
             <>
+              <ContextMenuItem onClick={() => { setShowNewFileDialog(true); setIsExpanded(true); }}>
+                <FilePlus className="h-4 w-4 mr-2" /> New File (with template)
+              </ContextMenuItem>
               <ContextMenuItem onClick={() => { setIsCreating('file'); setIsExpanded(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> New File
+                <Plus className="h-4 w-4 mr-2" /> New Empty File
               </ContextMenuItem>
               <ContextMenuItem onClick={() => { setIsCreating('folder'); setIsExpanded(true); }}>
                 <Folder className="h-4 w-4 mr-2" /> New Folder
               </ContextMenuItem>
+              <ContextMenuSeparator />
             </>
           )}
           <ContextMenuItem onClick={() => { setIsRenaming(true); setRenameValue(node.name); }}>
@@ -182,6 +183,7 @@ const FileTreeItem = ({
               depth={depth + 1}
               onFileSelect={onFileSelect}
               onCreateFile={onCreateFile}
+              onCreateFileWithContent={onCreateFileWithContent}
               onDeleteFile={onDeleteFile}
               onRenameFile={onRenameFile}
               selectedFileId={selectedFileId}
@@ -189,6 +191,19 @@ const FileTreeItem = ({
           ))}
         </div>
       )}
+
+      <NewFileDialog
+        isOpen={showNewFileDialog}
+        onClose={() => setShowNewFileDialog(false)}
+        onCreateFile={(filename, content) => {
+          if (onCreateFileWithContent) {
+            onCreateFileWithContent(node.type === 'folder' ? node.id : node.parent_id, filename, content);
+          } else {
+            onCreateFile(node.type === 'folder' ? node.id : node.parent_id, filename, 'file');
+          }
+        }}
+        parentPath={node.path}
+      />
     </div>
   );
 };
@@ -197,12 +212,14 @@ export const FileExplorer = ({
   files,
   onFileSelect,
   onCreateFile,
+  onCreateFileWithContent,
   onDeleteFile,
   onRenameFile,
   selectedFileId,
 }: FileExplorerProps) => {
   const [isCreatingRoot, setIsCreatingRoot] = useState<'file' | 'folder' | null>(null);
   const [newRootName, setNewRootName] = useState('');
+  const [showNewFileDialog, setShowNewFileDialog] = useState(false);
 
   const handleCreateRoot = () => {
     if (newRootName.trim() && isCreatingRoot) {
@@ -221,7 +238,17 @@ export const FileExplorer = ({
             variant="ghost"
             size="icon"
             className="h-5 w-5"
+            onClick={() => setShowNewFileDialog(true)}
+            title="New File with Template"
+          >
+            <FilePlus className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
             onClick={() => setIsCreatingRoot('file')}
+            title="New Empty File"
           >
             <File className="h-3 w-3" />
           </Button>
@@ -230,6 +257,7 @@ export const FileExplorer = ({
             size="icon"
             className="h-5 w-5"
             onClick={() => setIsCreatingRoot('folder')}
+            title="New Folder"
           >
             <Folder className="h-3 w-3" />
           </Button>
@@ -264,6 +292,7 @@ export const FileExplorer = ({
             depth={0}
             onFileSelect={onFileSelect}
             onCreateFile={onCreateFile}
+            onCreateFileWithContent={onCreateFileWithContent}
             onDeleteFile={onDeleteFile}
             onRenameFile={onRenameFile}
             selectedFileId={selectedFileId}
@@ -275,6 +304,19 @@ export const FileExplorer = ({
           </div>
         )}
       </div>
+
+      <NewFileDialog
+        isOpen={showNewFileDialog}
+        onClose={() => setShowNewFileDialog(false)}
+        onCreateFile={(filename, content) => {
+          if (onCreateFileWithContent) {
+            onCreateFileWithContent(null, filename, content);
+          } else {
+            onCreateFile(null, filename, 'file');
+          }
+        }}
+        parentPath="/"
+      />
     </div>
   );
 };
