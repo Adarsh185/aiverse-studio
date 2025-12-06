@@ -19,12 +19,18 @@ serve(async (req) => {
       throw new Error("Prompt is required and must be a string");
     }
 
+    const IMAGE_API_KEY = Deno.env.get("IMAGE_API_KEY");
+    if (!IMAGE_API_KEY) {
+      throw new Error("IMAGE_API_KEY is not configured");
+    }
+
     console.log("Generating image with external API, prompt:", prompt);
 
     const response = await fetch(IMAGE_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${IMAGE_API_KEY}`,
       },
       body: JSON.stringify({ prompt }),
     });
