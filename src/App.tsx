@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
 import ImageGen from "./pages/ImageGen";
+import VideoGen from "./pages/VideoGen";
 import Collaborate from "./pages/Collaborate";
 import Settings from "./pages/Settings";
 import CodeEditor from "./pages/CodeEditor";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/image" element={<ImageGen />} />
+            <Route path="/video" element={<VideoGen />} />
             <Route path="/collaborate" element={<Collaborate />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/editor" element={<CodeEditor />} />

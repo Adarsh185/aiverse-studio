@@ -88,7 +88,7 @@ const Dashboard = () => {
       description: "Generate videos using AI technology",
       icon: Video,
       href: "/video",
-      available: false,
+      available: true,
     },
     {
       title: "Code Editor",
