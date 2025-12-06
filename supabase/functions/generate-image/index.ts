@@ -49,13 +49,14 @@ serve(async (req) => {
     const data = await response.json();
     console.log("Received response from Image API");
 
-    if (!data.image) {
+    const imageData = data.imageUrl || data.image;
+    if (!imageData) {
       console.error("Unexpected response structure:", JSON.stringify(data));
       throw new Error("No image generated");
     }
 
     return new Response(
-      JSON.stringify({ image: data.image }),
+      JSON.stringify({ image: imageData }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
