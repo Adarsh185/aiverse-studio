@@ -22,148 +22,68 @@ serve(async (req) => {
       throw new Error("Messages array is required");
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const GROK_API_KEY = Deno.env.get("GROK_API_KEY");
+    if (!GROK_API_KEY) {
+      throw new Error("GROK_API_KEY is not configured");
     }
 
-    console.log("Sending request to Gemini API with", messages.length, "messages, stream:", stream);
+    console.log("Sending request to Grok API with", messages.length, "messages, stream:", stream);
 
-    // Convert messages to Gemini format
-    const geminiMessages = messages.map((msg: Message) => {
-      const content = typeof msg.content === 'string' 
-        ? msg.content 
-        : msg.content.map(c => c.text || '').join('');
-      
-      return {
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: content }]
-      };
+    const grokMessages = [
+      {
+        role: "system",
+        content: `You are a helpful AI assistant in AIverse. You can help with coding, writing, analysis, and general questions.
+When providing code, always use proper markdown code blocks with language specification like \`\`\`javascript or \`\`\`python.
+Be concise but thorough. Use markdown formatting for better readability.`
+      },
+      ...messages.map((msg: Message) => ({
+        role: msg.role,
+        content: typeof msg.content === 'string' 
+          ? msg.content 
+          : msg.content.map(c => c.text || '').join('')
+      }))
+    ];
+
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROK_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "grok-3-mini-beta",
+        messages: grokMessages,
+        stream: stream,
+        temperature: 0.7,
+        max_tokens: 8192,
+      }),
     });
 
-    // Add system instruction
-    const systemInstruction = `You are a helpful AI assistant in AIverse. You can help with coding, writing, analysis, and general questions.
-When providing code, always use proper markdown code blocks with language specification like \`\`\`javascript or \`\`\`python.
-Be concise but thorough. Use markdown formatting for better readability.`;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Grok API error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      throw new Error(`Grok API error: ${response.status}`);
+    }
 
     if (stream) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: geminiMessages,
-            systemInstruction: {
-              parts: [{ text: systemInstruction }]
-            },
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 8192,
-            }
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Gemini API error:", response.status, errorText);
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
-
-      // Transform Gemini SSE to OpenAI-compatible SSE format
-      const reader = response.body?.getReader();
-      const encoder = new TextEncoder();
-      
-      const transformedStream = new ReadableStream({
-        async start(controller) {
-          if (!reader) {
-            controller.close();
-            return;
-          }
-
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
-
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const jsonStr = line.slice(6).trim();
-                  if (jsonStr === '[DONE]') continue;
-                  
-                  try {
-                    const geminiData = JSON.parse(jsonStr);
-                    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                    
-                    if (text) {
-                      // Convert to OpenAI format
-                      const openaiFormat = {
-                        choices: [{
-                          delta: { content: text }
-                        }]
-                      };
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiFormat)}\n\n`));
-                    }
-                  } catch (e) {
-                    console.error("Parse error:", e);
-                  }
-                }
-              }
-            }
-          } finally {
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-          }
-        }
-      });
-
-      return new Response(transformedStream, {
+      return new Response(response.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }
 
-    // Non-streaming response
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: geminiMessages,
-          systemInstruction: {
-            parts: [{ text: systemInstruction }]
-          },
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-          }
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-
     const data = await response.json();
-    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const aiResponse = data.choices?.[0]?.message?.content;
 
     if (!aiResponse) {
-      throw new Error("No response from Gemini");
+      throw new Error("No response from Grok");
     }
 
     return new Response(
