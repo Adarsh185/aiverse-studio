@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      collaboration_sessions: {
+        Row: {
+          code_content: string | null
+          code_language: string | null
+          created_at: string
+          host_id: string
+          id: string
+          max_participants: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code_content?: string | null
+          code_language?: string | null
+          created_at?: string
+          host_id: string
+          id?: string
+          max_participants?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          code_content?: string | null
+          code_language?: string | null
+          created_at?: string
+          host_id?: string
+          id?: string
+          max_participants?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           created_at: string
@@ -149,6 +182,108 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      session_invites: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          invited_by: string
+          session_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          invited_by: string
+          session_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string
+          session_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_invites_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_ai_response: boolean | null
+          session_id: string
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_ai_response?: boolean | null
+          session_id: string
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_ai_response?: boolean | null
+          session_id?: string
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_participants: {
+        Row: {
+          id: string
+          joined_at: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
