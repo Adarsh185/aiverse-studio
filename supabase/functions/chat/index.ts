@@ -22,14 +22,14 @@ serve(async (req) => {
       throw new Error("Messages array is required");
     }
 
-    const GROK_API_KEY = Deno.env.get("GROK_API_KEY");
-    if (!GROK_API_KEY) {
-      throw new Error("GROK_API_KEY is not configured");
+    const GROQ_API_KEY = Deno.env.get("GROK_API_KEY");
+    if (!GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not configured");
     }
 
-    console.log("Sending request to Grok API with", messages.length, "messages, stream:", stream);
+    console.log("Sending request to Groq API with", messages.length, "messages, stream:", stream);
 
-    const grokMessages = [
+    const groqMessages = [
       {
         role: "system",
         content: `You are a helpful AI assistant in AIverse. You can help with coding, writing, analysis, and general questions.
@@ -44,15 +44,15 @@ Be concise but thorough. Use markdown formatting for better readability.`
       }))
     ];
 
-    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${GROK_API_KEY}`,
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "grok-3-mini-beta",
-        messages: grokMessages,
+        model: "llama-3.3-70b-versatile",
+        messages: groqMessages,
         stream: stream,
         temperature: 0.7,
         max_tokens: 8192,
@@ -61,7 +61,7 @@ Be concise but thorough. Use markdown formatting for better readability.`
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Grok API error:", response.status, errorText);
+      console.error("Groq API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -70,7 +70,7 @@ Be concise but thorough. Use markdown formatting for better readability.`
         );
       }
       
-      throw new Error(`Grok API error: ${response.status}`);
+      throw new Error(`Groq API error: ${response.status}`);
     }
 
     if (stream) {
@@ -83,7 +83,7 @@ Be concise but thorough. Use markdown formatting for better readability.`
     const aiResponse = data.choices?.[0]?.message?.content;
 
     if (!aiResponse) {
-      throw new Error("No response from Grok");
+      throw new Error("No response from Groq");
     }
 
     return new Response(
