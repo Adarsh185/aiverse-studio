@@ -195,6 +195,23 @@ export const useCollaborationSession = (user: User | null) => {
     if (error) {
       toast({ title: "Error", description: "Failed to send invite", variant: "destructive" });
     } else {
+      // Find the invited user and create notification
+      const { data: invitedUser } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (invitedUser) {
+        await supabase.from("notifications").insert({
+          user_id: invitedUser.id,
+          type: "invite",
+          title: "Collaboration Invite",
+          message: `${user.email} invited you to join "${currentSession.name}"`,
+          data: { session_id: currentSession.id, inviter_email: user.email },
+        });
+      }
+
       toast({ title: "Invite sent", description: `Invitation sent to ${email}` });
       await loadSessionData(currentSession.id);
     }
